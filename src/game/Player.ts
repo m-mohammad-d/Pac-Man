@@ -1,8 +1,14 @@
-import * as THREE from 'three';
-import { Entity } from '../entities/Entity';
-import { Direction, DIR_VECTORS, OPPOSITE_DIRECTIONS, PLAYER_BASE_SPEED, TILE_SIZE } from '../utils/Constants';
-import { MathUtils } from '../utils/MathUtils';
-import { Maze } from './Maze';
+import * as THREE from "three";
+import { Entity } from "../entities/Entity";
+import {
+  Direction,
+  DIR_VECTORS,
+  OPPOSITE_DIRECTIONS,
+  PLAYER_BASE_SPEED,
+  TILE_SIZE,
+} from "../utils/Constants";
+import { MathUtils } from "../utils/MathUtils";
+import { Maze } from "./Maze";
 
 export class Player extends Entity {
   public currentDirection: Direction = Direction.NONE;
@@ -49,7 +55,7 @@ export class Player extends Entity {
       emissive: 0xffb700,
       emissiveIntensity: 0.35,
       roughness: 0.25,
-      metalness: 0.15
+      metalness: 0.15,
     });
 
     // Upper jaw hemisphere (0 to PI in theta)
@@ -60,7 +66,7 @@ export class Player extends Entity {
       0,
       Math.PI * 2,
       0,
-      Math.PI / 2
+      Math.PI / 2,
     );
     const upperMesh = new THREE.Mesh(upperGeo, bodyMat);
     upperMesh.castShadow = true;
@@ -68,7 +74,10 @@ export class Player extends Entity {
 
     // Flat mouth interior disc for upper jaw
     const discGeo = new THREE.CircleGeometry(radius, 24);
-    const insideMat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide });
+    const insideMat = new THREE.MeshBasicMaterial({
+      color: 0x111111,
+      side: THREE.DoubleSide,
+    });
     const upperDisc = new THREE.Mesh(discGeo, insideMat);
     upperDisc.rotation.x = Math.PI / 2;
     this.upperJaw.add(upperDisc);
@@ -81,7 +90,7 @@ export class Player extends Entity {
       0,
       Math.PI * 2,
       Math.PI / 2,
-      Math.PI / 2
+      Math.PI / 2,
     );
     const lowerMesh = new THREE.Mesh(lowerGeo, bodyMat);
     lowerMesh.castShadow = true;
@@ -93,7 +102,10 @@ export class Player extends Entity {
 
     // Eyes on upper jaw
     const eyeGeo = new THREE.SphereGeometry(0.1, 12, 12);
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
+    const eyeMat = new THREE.MeshStandardMaterial({
+      color: 0x111111,
+      roughness: 0.1,
+    });
 
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
     leftEye.position.set(-0.35, 0.35, -0.38);
@@ -121,7 +133,7 @@ export class Player extends Entity {
       this.tileZ,
       this.maze.width,
       this.maze.height,
-      TILE_SIZE
+      TILE_SIZE,
     );
     this.setPosition(world.x, 0.1, world.z);
 
@@ -132,6 +144,7 @@ export class Player extends Entity {
     this.upperJaw.rotation.x = 0;
     this.lowerJaw.rotation.x = 0;
     this.mesh.visible = true;
+    this.mesh.scale.set(1, 1, 1);
   }
 
   public setRequestedDirection(dir: Direction): void {
@@ -176,14 +189,14 @@ export class Player extends Entity {
         this.tileZ,
         this.maze.width,
         this.maze.height,
-        TILE_SIZE
+        TILE_SIZE,
       );
       const toWorld = MathUtils.gridToWorld(
         this.nextTileX,
         this.nextTileZ,
         this.maze.width,
         this.maze.height,
-        TILE_SIZE
+        TILE_SIZE,
       );
 
       const currentX = MathUtils.lerp(fromWorld.x, toWorld.x, this.progress);
@@ -235,7 +248,7 @@ export class Player extends Entity {
     this.currentRotationY = MathUtils.lerpAngle(
       this.currentRotationY,
       this.targetRotationY,
-      Math.min(1.0, deltaTime * 14.0)
+      Math.min(1.0, deltaTime * 14.0),
     );
     this.mesh.rotation.y = this.currentRotationY;
   }
