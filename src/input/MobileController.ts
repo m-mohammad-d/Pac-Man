@@ -2,7 +2,7 @@ import { Direction } from '../utils/Constants';
 import { ResponsiveManager } from '../utils/ResponsiveManager';
 import { HapticManager } from '../utils/HapticManager';
 
-export type TouchControlMode = 'joystick' | 'swipe' | 'both';
+export type TouchControlMode = 'joystick' | 'swipe';
 export type JoystickSizePreset = 'small' | 'medium' | 'large';
 
 export interface MobileControllerOptions {
@@ -26,7 +26,7 @@ export class MobileController {
 
   private swipeOverlay: HTMLElement | null = null;
 
-  private mode: TouchControlMode = 'both';
+  private mode: TouchControlMode = 'joystick';
   private sizePreset: JoystickSizePreset = 'medium';
   private deadzone: number = 0.22;
   private enabled: boolean = true;
@@ -55,7 +55,7 @@ export class MobileController {
   private unsubscribeResponsive?: () => void;
 
   constructor(options: MobileControllerOptions = {}) {
-    this.mode = options.mode || 'both';
+    this.mode = options.mode || 'joystick';
     this.sizePreset = options.sizePreset || 'medium';
     this.deadzone = options.deadzone ?? 0.22;
     this.enabled = options.enabled ?? true;
@@ -177,13 +177,9 @@ export class MobileController {
     if (this.mode === 'swipe') {
       this.joystickBase.style.display = 'none';
       this.swipeOverlay.style.display = 'block';
-    } else if (this.mode === 'joystick') {
+    } else {
       this.joystickBase.style.display = 'block';
       this.swipeOverlay.style.display = 'none';
-    } else {
-      // 'both'
-      this.joystickBase.style.display = 'block';
-      this.swipeOverlay.style.display = 'block';
     }
   }
 
@@ -210,7 +206,7 @@ export class MobileController {
     // 1. Joystick Touch Handlers
     if (touchZone) {
       touchZone.addEventListener('touchstart', (e: TouchEvent) => {
-        if (!this.enabled || (this.mode !== 'joystick' && this.mode !== 'both')) return;
+        if (!this.enabled || this.mode !== 'joystick') return;
         if (this.activeTouchId !== null) return; // Already tracking a finger for joystick
 
         const touch = e.changedTouches[0];
@@ -252,15 +248,10 @@ export class MobileController {
     // 2. Swipe Gesture Handlers
     if (swipeSurface) {
       swipeSurface.addEventListener('touchstart', (e: TouchEvent) => {
-        if (!this.enabled || (this.mode !== 'swipe' && this.mode !== 'both')) return;
+        if (!this.enabled || this.mode !== 'swipe') return;
         if (this.swipeActiveTouchId !== null) return;
 
         const touch = e.changedTouches[0];
-        // Don't capture if touch began in joystick zone while joystick is enabled
-        if (this.mode === 'both' && this.isInJoystickZone(touch.clientX, touch.clientY)) {
-          return;
-        }
-
         this.swipeActiveTouchId = touch.identifier;
         this.swipeStartX = touch.clientX;
         this.swipeStartY = touch.clientY;
@@ -308,18 +299,6 @@ export class MobileController {
       swipeSurface.addEventListener('touchend', handleSwipeEnd, { passive: true });
       swipeSurface.addEventListener('touchcancel', handleSwipeEnd, { passive: true });
     }
-  }
-
-  private isInJoystickZone(clientX: number, clientY: number): boolean {
-    if (!this.joystickBase) return false;
-    const rect = this.joystickBase.getBoundingClientRect();
-    const margin = 25;
-    return (
-      clientX >= rect.left - margin &&
-      clientX <= rect.right + margin &&
-      clientY >= rect.top - margin &&
-      clientY <= rect.bottom + margin
-    );
   }
 
   private calcBaseCenter(): void {

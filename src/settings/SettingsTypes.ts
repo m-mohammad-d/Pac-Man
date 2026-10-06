@@ -58,7 +58,7 @@ export interface ControlSettings {
   cycleCamera: string;
   gamepadEnabled: boolean;
   gamepadDeadzone: number;
-  mobileControlsMode: 'joystick' | 'swipe' | 'both';
+  mobileControlsMode: 'joystick' | 'swipe';
   joystickSize: 'small' | 'medium' | 'large';
   touchControlsEnabled: boolean;
 }
@@ -164,7 +164,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
     cycleCamera: 'KeyC',
     gamepadEnabled: true,
     gamepadDeadzone: 0.2,
-    mobileControlsMode: 'both',
+    mobileControlsMode: 'joystick',
     joystickSize: 'medium',
     touchControlsEnabled: true
   },

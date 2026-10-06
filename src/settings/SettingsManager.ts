@@ -35,7 +35,11 @@ export class SettingsManager {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        return this.deepMerge(DEFAULT_SETTINGS, parsed);
+        const merged = this.deepMerge(DEFAULT_SETTINGS, parsed);
+        if (merged.controls && (merged.controls.mobileControlsMode as string) === 'both') {
+          merged.controls.mobileControlsMode = 'joystick';
+        }
+        return merged;
       }
     } catch (err) {
       console.warn('Failed to parse saved settings, falling back to defaults:', err);

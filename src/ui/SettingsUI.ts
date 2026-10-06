@@ -497,9 +497,8 @@ export class SettingsUI {
         <div class="setting-row">
           <label>Mobile Control Mode</label>
           <select id="set-touch-mode" class="arcade-select">
-            <option value="both" ${c.mobileControlsMode === 'both' ? 'selected' : ''}>🕹️ Joystick + 👆 Swipe Gestures</option>
-            <option value="joystick" ${c.mobileControlsMode === 'joystick' ? 'selected' : ''}>🕹️ Virtual Joystick Only</option>
-            <option value="swipe" ${c.mobileControlsMode === 'swipe' ? 'selected' : ''}>👆 Swipe Gestures Only</option>
+            <option value="joystick" ${c.mobileControlsMode === 'joystick' ? 'selected' : ''}>🕹️ Joystick</option>
+            <option value="swipe" ${c.mobileControlsMode === 'swipe' ? 'selected' : ''}>👆 Swipe Gestures</option>
           </select>
         </div>
 
