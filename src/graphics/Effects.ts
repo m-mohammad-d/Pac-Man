@@ -19,6 +19,7 @@ export class Effects {
 
   private posArray: Float32Array;
   private colArray: Float32Array;
+  public qualityMultiplier: number = 1.0;
 
   constructor() {
     this.group = new THREE.Group();
@@ -44,7 +45,8 @@ export class Effects {
   }
 
   public spawnPelletBurst(pos: THREE.Vector3, isPower: boolean = false): void {
-    const count = isPower ? 35 : 12;
+    const baseCount = isPower ? 35 : 12;
+    const count = Math.max(2, Math.round(baseCount * this.qualityMultiplier));
     const baseColor = isPower ? new THREE.Color(0xffffff) : new THREE.Color(0xffe600);
 
     for (let i = 0; i < count; i++) {

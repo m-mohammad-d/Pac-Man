@@ -10,15 +10,19 @@ import { CollisionSystem } from './CollisionSystem';
 import { ScoreManager } from './ScoreManager';
 import { GameStateManager, PlayState } from './GameState';
 import { SoundManager } from '../audio/SoundManager';
+import { SettingsManager } from '../settings/SettingsManager';
+import { SettingsUI } from '../ui/SettingsUI';
+import { GameSettings } from '../settings/SettingsTypes';
 import {
   Direction,
   GhostType,
   GhostMode,
   PELLET_SCORE,
   POWER_PELLET_SCORE,
-  FRIGHTENED_DURATION,
-  CameraMode
+  CameraMode,
+  TILE_SIZE
 } from '../utils/Constants';
+import { MathUtils } from '../utils/MathUtils';
 
 export class Game {
   private renderer: Renderer;
@@ -36,6 +40,10 @@ export class Game {
   private gameState: GameStateManager;
   private soundManager: SoundManager;
 
+  // Settings & Configuration
+  private settingsManager: SettingsManager;
+  private settingsUI: SettingsUI;
+
   // DOM Elements
   private hudScore: HTMLElement | null = null;
   private hudHighScore: HTMLElement | null = null;
@@ -47,6 +55,8 @@ export class Game {
   private cameraBadge: HTMLElement | null = null;
   private soundIcon: HTMLElement | null = null;
   private pauseIcon: HTMLElement | null = null;
+  private devHud: HTMLElement | null = null;
+  private subtitlesBanner: HTMLElement | null = null;
 
   private startModal: HTMLElement | null = null;
   private gameOverModal: HTMLElement | null = null;
@@ -54,9 +64,11 @@ export class Game {
   private gameOverFinalScore: HTMLElement | null = null;
   private victoryScore: HTMLElement | null = null;
 
-  // Loop control
+  // Diagnostics & performance
   private lastTime: number = 0;
   private isRunning: boolean = false;
+  private smoothedFps: number = 60;
+  private subtitleTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -80,10 +92,80 @@ export class Game {
     this.gameState = new GameStateManager();
     this.soundManager = new SoundManager();
 
+    // Initialize Settings Architecture
+    this.settingsManager = SettingsManager.getInstance();
+    this.settingsUI = new SettingsUI(this.settingsManager);
+
+    this.settingsUI.setCallbacks({
+      onApply: () => {
+        this.applyAllSettings(this.settingsManager.getSettings());
+      },
+      onTeleport: () => {
+        const start = this.maze.getPacmanStartTile();
+        this.player.tileX = start.x;
+        this.player.tileZ = start.z;
+        this.player.nextTileX = start.x;
+        this.player.nextTileZ = start.z;
+        this.player.progress = 0;
+        const world = MathUtils.gridToWorld(start.x, start.z, this.maze.width, this.maze.height, TILE_SIZE);
+        this.player.setPosition(world.x, 0.1, world.z);
+        this.cameraController.resetImmediate(this.player.position);
+      },
+      onLevelSkip: (lvl: number) => {
+        this.scoreManager.level = lvl - 1;
+        this.startNextLevel();
+      }
+    });
+
+    this.settingsManager.subscribe((settings) => {
+      this.applyAllSettings(settings);
+    });
+
     this.initGhosts();
     this.initPellets();
     this.initDOM();
     this.initInput();
+
+    // Initial application of settings
+    this.applyAllSettings(this.settingsManager.getSettings());
+  }
+
+  private applyAllSettings(s: GameSettings): void {
+    // 1. Graphics
+    this.renderer.applySettings(s.graphics);
+    this.lighting.applySettings(s.graphics);
+    this.effects.qualityMultiplier = s.graphics.particleQuality;
+
+    // 2. Audio
+    this.soundManager.applySettings(s.audio);
+    this.soundManager.onSubtitle = (text) => this.showSubtitle(text);
+
+    // 3. Camera
+    this.cameraController.applyCustomSettings(s.camera);
+
+    // 4. Gameplay
+    this.player.speedMultiplier = s.gameplay.playerSpeedMultiplier;
+    this.ghosts.forEach((g) => {
+      g.speedMultiplier = s.gameplay.ghostSpeedMultiplier;
+      g.setColorblindMode(s.accessibility.colorblindMode);
+    });
+    this.collisionSystem.forgiveness = s.gameplay.collisionForgiveness;
+    this.collisionSystem.godMode = s.developer.godMode || s.developer.invincible;
+    this.scoreManager.startingLives = s.gameplay.startingLives;
+    this.scoreManager.extraLivesFrequency = s.gameplay.extraLivesFrequency;
+
+    // 5. Accessibility
+    document.body.classList.toggle('high-contrast', s.accessibility.highContrast);
+    document.documentElement.style.fontSize = `${(s.accessibility.uiScale / 100) * 16}px`;
+
+    // 6. Developer HUD
+    if (this.devHud) {
+      if (s.developer.fpsCounter || s.graphics.showFps || s.developer.showCoordinates) {
+        this.devHud.classList.remove('hidden');
+      } else {
+        this.devHud.classList.add('hidden');
+      }
+    }
   }
 
   private initGhosts(): void {
@@ -136,6 +218,8 @@ export class Game {
     this.cameraBadge = document.getElementById('camera-badge');
     this.soundIcon = document.getElementById('sound-icon');
     this.pauseIcon = document.getElementById('pause-icon');
+    this.devHud = document.getElementById('dev-hud');
+    this.subtitlesBanner = document.getElementById('subtitles-banner');
 
     this.startModal = document.getElementById('start-modal');
     this.gameOverModal = document.getElementById('gameover-modal');
@@ -163,7 +247,7 @@ export class Game {
       }
     );
 
-    // Modal buttons
+    // Modal & Action buttons
     document.getElementById('btn-start')?.addEventListener('click', () => {
       this.startGame();
     });
@@ -178,6 +262,10 @@ export class Game {
 
     document.getElementById('btn-camera')?.addEventListener('click', () => {
       this.cycleCamera();
+    });
+
+    document.getElementById('btn-settings')?.addEventListener('click', () => {
+      this.settingsUI.toggle();
     });
 
     document.getElementById('btn-sound')?.addEventListener('click', () => {
@@ -211,79 +299,62 @@ export class Game {
 
   private initInput(): void {
     window.addEventListener('keydown', (e) => {
-      switch (e.code) {
-        case 'ArrowUp':
-          e.preventDefault();
-          if (e.shiftKey || e.altKey) {
-            this.cameraController.adjustPitch(0.04);
-          } else {
-            this.player.setRequestedDirection(Direction.UP);
-          }
-          break;
-        case 'KeyW':
+      const c = this.settingsManager.getSettings().controls;
+
+      // Settings menu toggle
+      if (e.code === c.openMenu || (e.code === 'Escape' && !this.settingsUI.getIsOpen())) {
+        e.preventDefault();
+        this.settingsUI.toggle();
+        return;
+      }
+
+      if (this.settingsUI.getIsOpen()) return;
+
+      // Player Movement (Rebindable + Defaults)
+      if (e.code === c.moveUp || e.code === 'KeyW' || e.code === 'ArrowUp') {
+        if (e.shiftKey || e.altKey) {
+          this.cameraController.adjustPitch(0.04);
+        } else {
           e.preventDefault();
           this.player.setRequestedDirection(Direction.UP);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (e.shiftKey || e.altKey) {
-            this.cameraController.adjustPitch(-0.04);
-          } else {
-            this.player.setRequestedDirection(Direction.DOWN);
-          }
-          break;
-        case 'KeyS':
+        }
+      } else if (e.code === c.moveDown || e.code === 'KeyS' || e.code === 'ArrowDown') {
+        if (e.shiftKey || e.altKey) {
+          this.cameraController.adjustPitch(-0.04);
+        } else {
           e.preventDefault();
           this.player.setRequestedDirection(Direction.DOWN);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (e.shiftKey || e.altKey) {
-            this.cameraController.adjustYaw(0.05);
-          } else {
-            this.player.setRequestedDirection(Direction.LEFT);
-          }
-          break;
-        case 'KeyA':
+        }
+      } else if (e.code === c.moveLeft || e.code === 'KeyA' || e.code === 'ArrowLeft') {
+        if (e.shiftKey || e.altKey) {
+          this.cameraController.adjustYaw(0.05);
+        } else {
           e.preventDefault();
           this.player.setRequestedDirection(Direction.LEFT);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (e.shiftKey || e.altKey) {
-            this.cameraController.adjustYaw(-0.05);
-          } else {
-            this.player.setRequestedDirection(Direction.RIGHT);
-          }
-          break;
-        case 'KeyD':
+        }
+      } else if (e.code === c.moveRight || e.code === 'KeyD' || e.code === 'ArrowRight') {
+        if (e.shiftKey || e.altKey) {
+          this.cameraController.adjustYaw(-0.05);
+        } else {
           e.preventDefault();
           this.player.setRequestedDirection(Direction.RIGHT);
-          break;
-        case 'KeyC':
-          this.cycleCamera();
-          break;
-        case 'Equal':
-        case 'NumpadAdd':
-          this.cameraController.zoomIn();
-          break;
-        case 'Minus':
-        case 'NumpadSubtract':
-          this.cameraController.zoomOut();
-          break;
-        case 'BracketLeft':
-          this.cameraController.adjustPitch(-0.05);
-          break;
-        case 'BracketRight':
-          this.cameraController.adjustPitch(0.05);
-          break;
-        case 'KeyP':
-        case 'Space':
-          this.togglePause();
-          break;
-        case 'KeyM':
-          this.toggleSound();
-          break;
+        }
+      } else if (e.code === c.cycleCamera || e.code === 'KeyC') {
+        this.cycleCamera();
+      } else if (e.code === c.pause || e.code === 'Space') {
+        this.togglePause();
+      } else if (e.code === c.restart) {
+        this.restartGame();
+      } else if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+        this.cameraController.zoomIn();
+      } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+        this.cameraController.zoomOut();
+      } else if (e.code === 'BracketLeft') {
+        this.cameraController.adjustPitch(-0.05);
+      } else if (e.code === 'BracketRight') {
+        this.cameraController.adjustPitch(0.05);
+      } else if (e.code === 'KeyM') {
+        this.toggleSound();
       }
     });
 
@@ -320,10 +391,11 @@ export class Game {
     this.scoreManager.nextLevel();
     this.resetAllPellets();
     this.resetField();
-    // Increase ghost speeds slightly for higher levels
+
     const speedBoost = Math.min(2.0, (this.scoreManager.level - 1) * 0.4);
+    const speedMult = this.settingsManager.getSettings().gameplay.ghostSpeedMultiplier;
     this.ghosts.forEach((g) => {
-      g.speed = 5.2 + speedBoost;
+      g.speed = (5.2 + speedBoost) * speedMult;
     });
     this.gameState.setState(PlayState.READY);
     this.showBanner('LEVEL ' + this.scoreManager.level);
@@ -402,21 +474,94 @@ export class Game {
     if (this.powerTimerContainer) this.powerTimerContainer.style.display = 'none';
   }
 
+  private showSubtitle(text: string): void {
+    if (!this.settingsManager.getSettings().accessibility.subtitles) return;
+    if (this.subtitlesBanner) {
+      this.subtitlesBanner.textContent = text;
+      this.subtitlesBanner.classList.remove('hidden');
+      this.subtitleTimer = 1.6;
+    }
+  }
+
+  private pollGamepad(): void {
+    const s = this.settingsManager.getSettings();
+    if (!s.controls.gamepadEnabled) return;
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    if (!gamepads || !gamepads[0]) return;
+    const gp = gamepads[0];
+    if (!gp) return;
+
+    const deadzone = s.controls.gamepadDeadzone;
+    const axisX = gp.axes[0] || 0;
+    const axisY = gp.axes[1] || 0;
+
+    if (axisY < -deadzone || gp.buttons[12]?.pressed) {
+      this.player.setRequestedDirection(Direction.UP);
+    } else if (axisY > deadzone || gp.buttons[13]?.pressed) {
+      this.player.setRequestedDirection(Direction.DOWN);
+    } else if (axisX < -deadzone || gp.buttons[14]?.pressed) {
+      this.player.setRequestedDirection(Direction.LEFT);
+    } else if (axisX > deadzone || gp.buttons[15]?.pressed) {
+      this.player.setRequestedDirection(Direction.RIGHT);
+    }
+
+    if (gp.buttons[9]?.pressed) { // Start/Pause button
+      this.togglePause();
+    }
+  }
+
   private gameLoop(time: number): void {
     if (!this.isRunning) return;
 
-    const deltaTime = Math.min((time - this.lastTime) / 1000, 0.1); // clamp delta
+    const rawDelta = Math.min((time - this.lastTime) / 1000, 0.1);
     this.lastTime = time;
 
-    this.update(deltaTime);
+    // Smoothed FPS for diagnostics
+    const currentFps = 1 / (rawDelta || 0.016);
+    this.smoothedFps = Math.round(this.smoothedFps * 0.9 + currentFps * 0.1);
+
+    // Apply Game Speed Multiplier
+    const s = this.settingsManager.getSettings();
+    const effectiveDelta = rawDelta * s.gameplay.gameSpeedMultiplier;
+
+    this.update(effectiveDelta, rawDelta);
     this.render();
 
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 
-  private update(deltaTime: number): void {
-    // Effects update on all states
+  private update(deltaTime: number, realDelta: number): void {
+    const s = this.settingsManager.getSettings();
+
+    // Effects update
     this.effects.update(deltaTime);
+
+    // Subtitle timer
+    if (this.subtitleTimer > 0) {
+      this.subtitleTimer -= realDelta;
+      if (this.subtitleTimer <= 0 && this.subtitlesBanner) {
+        this.subtitlesBanner.classList.add('hidden');
+      }
+    }
+
+    // Developer HUD update
+    if (this.devHud && (s.developer.fpsCounter || s.graphics.showFps || s.developer.showCoordinates)) {
+      let content = '';
+      if (s.developer.fpsCounter || s.graphics.showFps) {
+        content += `<div>⚡ FPS: ${this.smoothedFps} (${(realDelta * 1000).toFixed(1)}ms)</div>`;
+      }
+      if (s.developer.showCoordinates) {
+        content += `<div>📍 Pac-Man: [${this.player.tileX}, ${this.player.tileZ}] (${this.player.position.x.toFixed(1)}, ${this.player.position.z.toFixed(1)})</div>`;
+        content += `<div>👻 Blinky: [${this.ghosts[0]?.tileX}, ${this.ghosts[0]?.tileZ}]</div>`;
+      }
+      if (s.developer.godMode || s.developer.invincible) {
+        content += `<div style="color: #ffe600; font-weight: bold;">🛡️ GOD MODE ACTIVE</div>`;
+      }
+      this.devHud.innerHTML = content;
+    }
+
+    // Gamepad polling
+    this.pollGamepad();
 
     // Update Game State Timers
     const { stateChanged, waveChanged, frightenedEnded } = this.gameState.updateTimers(deltaTime);
@@ -426,7 +571,6 @@ export class Game {
         this.hideBanner();
         this.soundManager.startSiren();
       } else if (this.gameState.currentState === PlayState.PLAYER_DYING) {
-        // Player death countdown ended
         if (this.scoreManager.lives > 0) {
           this.resetField();
           this.gameState.setState(PlayState.READY);
@@ -438,7 +582,7 @@ export class Game {
     }
 
     if (waveChanged && !this.gameState.isFrightenedActive()) {
-      const mode = this.gameState.currentWaveMode;
+      const mode = s.gameplay.reducedGhostAggression ? GhostMode.SCATTER : this.gameState.currentWaveMode;
       this.ghosts.forEach((g) => {
         if (g.mode !== GhostMode.EATEN && g.mode !== GhostMode.FRIGHTENED) {
           g.mode = mode;
@@ -454,7 +598,8 @@ export class Game {
 
     // Power Pellet UI timer bar & flashing
     if (this.gameState.isFrightenedActive()) {
-      const progress = this.gameState.frightenedTimer / FRIGHTENED_DURATION;
+      const maxDuration = s.gameplay.powerPelletDuration;
+      const progress = this.gameState.frightenedTimer / maxDuration;
       this.showPowerBar(progress);
       this.ghosts.forEach((g) => g.updateFrightenedFlash(this.gameState.frightenedTimer));
     }
@@ -480,10 +625,14 @@ export class Game {
         if (hitPellet.isPowerPellet) {
           this.scoreManager.addScore(POWER_PELLET_SCORE);
           this.scoreManager.resetGhostStreak();
-          this.gameState.triggerFrightened();
+          this.gameState.triggerFrightened(s.gameplay.powerPelletDuration);
           this.ghosts.forEach((g) => g.setFrightened());
           this.soundManager.playPowerPellet();
           this.effects.spawnPelletBurst(hitPellet.position, true);
+
+          if (s.accessibility.screenShake) {
+            this.cameraController.triggerScreenShake(0.4);
+          }
         } else {
           this.scoreManager.addScore(PELLET_SCORE);
           this.soundManager.playWaka();
@@ -505,6 +654,10 @@ export class Game {
           this.scoreManager.eatGhost();
           this.soundManager.playEatGhost();
           this.effects.spawnGhostBurst(ghostHit.ghost.position);
+
+          if (s.accessibility.screenShake) {
+            this.cameraController.triggerScreenShake(0.6);
+          }
         } else if (ghostHit.type === 'KILL_PLAYER') {
           this.handlePlayerDeath();
         }
@@ -519,15 +672,21 @@ export class Game {
     const isDying = this.gameState.currentState === PlayState.PLAYER_DYING;
     this.cameraController.update(
       this.player.position,
-      deltaTime,
+      realDelta,
       isDying
     );
   }
 
   private handlePlayerDeath(): void {
+    const s = this.settingsManager.getSettings();
     this.soundManager.stopSiren();
     this.soundManager.playDeath();
     this.effects.spawnDeathBurst(this.player.position);
+
+    if (s.accessibility.screenShake) {
+      this.cameraController.triggerScreenShake(0.8);
+    }
+
     this.scoreManager.loseLife();
     this.gameState.setState(PlayState.PLAYER_DYING);
   }

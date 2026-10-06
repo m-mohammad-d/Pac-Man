@@ -6,6 +6,9 @@ export class ScoreManager {
   public pelletsRemaining: number = 0;
   public ghostStreak: number = 0;
 
+  public startingLives: number = 3;
+  public extraLivesFrequency: number = 10000;
+
   private onScoreChange?: (score: number, highScore: number) => void;
   private onLivesChange?: (lives: number) => void;
   private onLevelChange?: (level: number) => void;
@@ -31,7 +34,7 @@ export class ScoreManager {
   public resetGame(): void {
     this.score = 0;
     this.level = 1;
-    this.lives = 3;
+    this.lives = this.startingLives;
     this.ghostStreak = 0;
     this.notifyScore();
     this.notifyLives();
@@ -44,13 +47,24 @@ export class ScoreManager {
     this.notifyLevel();
   }
 
-  public addScore(points: number): void {
+  public addScore(points: number): boolean {
+    const prevScore = this.score;
     this.score += points;
+    let earnedLife = false;
+    if (
+      this.extraLivesFrequency > 0 &&
+      Math.floor(this.score / this.extraLivesFrequency) > Math.floor(prevScore / this.extraLivesFrequency)
+    ) {
+      this.lives = Math.min(5, this.lives + 1);
+      this.notifyLives();
+      earnedLife = true;
+    }
     if (this.score > this.highScore) {
       this.highScore = this.score;
       this.saveHighScore();
     }
     this.notifyScore();
+    return earnedLife;
   }
 
   public resetGhostStreak(): void {

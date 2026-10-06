@@ -12,6 +12,7 @@ export class Player extends Entity {
   public nextTileZ: number = 0;
   public progress: number = 0; // 0 to 1 between tile and nextTile
   public speed: number = PLAYER_BASE_SPEED;
+  public speedMultiplier: number = 1.0;
 
   public targetRotationY: number = 0;
   public currentRotationY: number = 0;
@@ -110,6 +111,7 @@ export class Player extends Entity {
     this.nextTileX = start.x;
     this.nextTileZ = start.z;
     this.progress = 0;
+    this.speed = PLAYER_BASE_SPEED * this.speedMultiplier;
     this.currentDirection = Direction.NONE;
     this.requestedDirection = Direction.NONE;
     this.isMoving = false;

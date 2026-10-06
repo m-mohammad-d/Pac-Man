@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CameraMode } from '../utils/Constants';
+import { CameraCustomSettings } from '../settings/SettingsTypes';
 
 export interface CameraSettings {
   distance: number;
@@ -83,6 +84,10 @@ export class CameraController {
 
   // Attract mode drift timer for MENU mode
   private menuTime: number = 0;
+
+  // Screen shake
+  public shakeTrauma: number = 0;
+  public shakeMultiplier: number = 0.3;
 
   // Internal flags
   private isInitialized: boolean = false;
@@ -176,6 +181,26 @@ export class CameraController {
     this.settings = { ...DEFAULT_CAMERA_SETTINGS };
     this.camera.fov = this.settings.fov;
     this.camera.updateProjectionMatrix();
+  }
+
+  public applyCustomSettings(custom: CameraCustomSettings): void {
+    this.settings.distance = custom.distance;
+    this.settings.height = custom.height;
+    this.settings.pitchAngle = (custom.pitchAngle * Math.PI) / 180;
+    this.settings.yawAngle = (custom.yawAngle * Math.PI) / 180;
+    this.settings.fov = custom.fov;
+    this.settings.smoothSpeed = custom.smoothSpeed;
+    this.settings.lookAtSmoothSpeed = custom.lookAtSmoothSpeed;
+    this.settings.rotationSpeed = custom.rotationSpeed;
+    this.settings.minDistance = custom.minDistance;
+    this.settings.maxDistance = custom.maxDistance;
+    this.shakeMultiplier = custom.shakeAmount;
+    this.camera.fov = custom.fov;
+    this.camera.updateProjectionMatrix();
+  }
+
+  public triggerScreenShake(amount: number = 0.5): void {
+    this.shakeTrauma = Math.min(1.0, this.shakeTrauma + amount);
   }
 
   public update(
@@ -339,7 +364,24 @@ export class CameraController {
     this.currentPosition.lerp(this.desiredPosition, posAlpha);
     this.currentLookAt.lerp(this.desiredLookAt, lookAlpha);
 
-    this.camera.position.copy(this.currentPosition);
+    // Apply trauma-based screen shake
+    if (this.shakeTrauma > 0) {
+      const traumaSq = this.shakeTrauma * this.shakeTrauma;
+      const shakeMag = traumaSq * this.shakeMultiplier * 1.5;
+      const shakeX = (Math.random() - 0.5) * 2 * shakeMag;
+      const shakeY = (Math.random() - 0.5) * 2 * shakeMag;
+      const shakeZ = (Math.random() - 0.5) * 2 * shakeMag;
+
+      this.camera.position.set(
+        this.currentPosition.x + shakeX,
+        this.currentPosition.y + shakeY,
+        this.currentPosition.z + shakeZ
+      );
+      this.shakeTrauma = Math.max(0, this.shakeTrauma - deltaTime * 2.5);
+    } else {
+      this.camera.position.copy(this.currentPosition);
+    }
+
     this.camera.lookAt(this.currentLookAt);
   }
 

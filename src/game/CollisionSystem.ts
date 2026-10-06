@@ -11,6 +11,9 @@ export interface GhostCollisionResult {
 }
 
 export class CollisionSystem {
+  public forgiveness: number = 0.15;
+  public godMode: boolean = false;
+
   private readonly playerRadius: number = 0.65;
   private readonly ghostRadius: number = 0.6;
   private readonly pelletRadius: number = 0.45;
@@ -18,7 +21,7 @@ export class CollisionSystem {
   public checkPelletCollision(player: Player, pellets: Pellet[]): Pellet | null {
     const playerX = player.position.x;
     const playerZ = player.position.z;
-    const hitThreshold = this.playerRadius + this.pelletRadius;
+    const hitThreshold = this.playerRadius + this.pelletRadius + this.forgiveness * 0.5;
     const hitThresholdSq = hitThreshold * hitThreshold;
 
     for (let i = 0; i < pellets.length; i++) {
@@ -44,12 +47,13 @@ export class CollisionSystem {
   public checkGhostCollision(player: Player, ghosts: Ghost[]): GhostCollisionResult | null {
     const playerX = player.position.x;
     const playerZ = player.position.z;
-    const hitThreshold = this.playerRadius + this.ghostRadius;
-    const hitThresholdSq = hitThreshold * hitThreshold;
 
     for (let i = 0; i < ghosts.length; i++) {
       const ghost = ghosts[i];
       if (!ghost.active || ghost.mode === GhostMode.EATEN) continue;
+
+      const hitThreshold = Math.max(0.4, (this.playerRadius + this.ghostRadius) - this.forgiveness);
+      const hitThresholdSq = hitThreshold * hitThreshold;
 
       const dx = playerX - ghost.position.x;
       const dz = playerZ - ghost.position.z;
@@ -59,6 +63,10 @@ export class CollisionSystem {
         if (ghost.mode === GhostMode.FRIGHTENED) {
           return { ghost, type: 'EAT_GHOST' };
         } else {
+          if (this.godMode) {
+            // God mode enabled: player is immune to defeat
+            return null;
+          }
           return { ghost, type: 'KILL_PLAYER' };
         }
       }
@@ -66,4 +74,3 @@ export class CollisionSystem {
     return null;
   }
 }
-

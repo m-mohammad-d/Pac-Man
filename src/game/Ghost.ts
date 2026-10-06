@@ -16,6 +16,7 @@ import {
 import { MathUtils } from '../utils/MathUtils';
 import { Maze, TileCoord } from './Maze';
 import { Player } from './Player';
+import { ColorblindMode } from '../settings/SettingsTypes';
 
 export class Ghost extends Entity {
   public ghostType: GhostType;
@@ -26,6 +27,8 @@ export class Ghost extends Entity {
   public nextTileZ: number = 0;
   public progress: number = 0;
   public speed: number = GHOST_BASE_SPEED;
+  public speedMultiplier: number = 1.0;
+  public colorblindMode: ColorblindMode = 'none';
 
   private maze: Maze;
   private player: Player;
@@ -169,13 +172,14 @@ export class Ghost extends Entity {
     );
     this.setPosition(world.x, 0.1, world.z);
 
+    this.speed = GHOST_BASE_SPEED * this.speedMultiplier;
     this.updateAppearance();
   }
 
   public setFrightened(): void {
     if (this.mode === GhostMode.EATEN) return;
     this.mode = GhostMode.FRIGHTENED;
-    this.speed = GHOST_FRIGHTENED_SPEED;
+    this.speed = GHOST_FRIGHTENED_SPEED * this.speedMultiplier;
     this.flashTimer = 0;
     // Reverse direction immediately on entering frightened mode
     this.reverseDirection();
@@ -191,7 +195,7 @@ export class Ghost extends Entity {
   public restoreMode(): void {
     if (this.mode === GhostMode.FRIGHTENED) {
       this.mode = GhostMode.CHASE;
-      this.speed = GHOST_BASE_SPEED;
+      this.speed = GHOST_BASE_SPEED * this.speedMultiplier;
       this.updateAppearance();
     }
   }
@@ -281,7 +285,7 @@ export class Ghost extends Entity {
       if (this.mode === GhostMode.EATEN) {
         if ((this.tileX === 13 || this.tileX === 14) && (this.tileZ === 11 || this.tileZ === 12)) {
           this.mode = GhostMode.CHASE;
-          this.speed = GHOST_BASE_SPEED;
+          this.speed = GHOST_BASE_SPEED * this.speedMultiplier;
           this.isInsideHouse = false;
           this.updateAppearance();
         }
@@ -332,12 +336,43 @@ export class Ghost extends Entity {
     } else {
       this.bodyMesh.visible = true;
       this.eyesGroup.visible = true;
-      const color = GHOST_COLORS[this.ghostType];
+      const color = this.getGhostColor();
       this.bodyMaterial.color.setHex(color);
       this.bodyMaterial.emissive.setHex(color);
       (this.leftPupil.material as THREE.MeshStandardMaterial).color.setHex(0x0022cc);
       (this.rightPupil.material as THREE.MeshStandardMaterial).color.setHex(0x0022cc);
     }
+  }
+
+  public setColorblindMode(mode: ColorblindMode): void {
+    this.colorblindMode = mode;
+    this.updateAppearance();
+  }
+
+  public getGhostColor(): number {
+    if (this.colorblindMode === 'protanopia') {
+      switch (this.ghostType) {
+        case GhostType.BLINKY: return 0xd4a017;
+        case GhostType.PINKY: return 0x6fa8dc;
+        case GhostType.INKY: return 0x2b78e4;
+        case GhostType.CLYDE: return 0xffffff;
+      }
+    } else if (this.colorblindMode === 'deuteranopia') {
+      switch (this.ghostType) {
+        case GhostType.BLINKY: return 0xe69138;
+        case GhostType.PINKY: return 0x9fc5e8;
+        case GhostType.INKY: return 0x0072b2;
+        case GhostType.CLYDE: return 0xf1c232;
+      }
+    } else if (this.colorblindMode === 'tritanopia') {
+      switch (this.ghostType) {
+        case GhostType.BLINKY: return 0xd55e00;
+        case GhostType.PINKY: return 0xcc79a7;
+        case GhostType.INKY: return 0x009e73;
+        case GhostType.CLYDE: return 0x56b4e9;
+      }
+    }
+    return GHOST_COLORS[this.ghostType];
   }
 
   private updateEyeDirection(): void {

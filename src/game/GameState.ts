@@ -51,8 +51,8 @@ export class GameStateManager {
     this.frightenedTimer = 0;
   }
 
-  public triggerFrightened(): void {
-    this.frightenedTimer = FRIGHTENED_DURATION;
+  public triggerFrightened(duration: number = FRIGHTENED_DURATION): void {
+    this.frightenedTimer = duration;
   }
 
   public isFrightenedActive(): boolean {

@@ -48,6 +48,7 @@ Featuring authentic gameplay mechanics, intelligent ghost AI, procedural retro 8
 | **Move Down** | <kbd>S</kbd> | <kbd>↓</kbd> |
 | **Move Left** | <kbd>A</kbd> | <kbd>←</kbd> |
 | **Move Right** | <kbd>D</kbd> | <kbd>→</kbd> |
+| **Open Settings Menu** | <kbd>Esc</kbd> | Settings HUD Button |
 | **Cycle Camera Mode** | <kbd>C</kbd> | Camera HUD Button |
 | **Zoom In / Out** | <kbd>+</kbd> / <kbd>=</kbd> | <kbd>-</kbd> / <kbd>_</kbd> |
 | **Adjust Camera Pitch** | <kbd>[</kbd> / <kbd>]</kbd> | <kbd>Shift</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> |
@@ -85,6 +86,11 @@ pac-man/
     │   └── Entity.ts           # Base class for scene entities
     ├── audio/
     │   └── SoundManager.ts     # Procedural 8-bit Web Audio synth & Howler
+    ├── settings/
+    │   ├── SettingsTypes.ts    # Comprehensive game configuration interfaces
+    │   └── SettingsManager.ts  # State management, validation & local persistence
+    ├── ui/
+    │   └── SettingsUI.ts       # Tabbed in-game settings modal & keybinding mapper
     ├── utils/
     │   ├── Constants.ts        # Speeds, directions, colors & timings
     │   └── MathUtils.ts        # Coordinate mappings & interpolation helpers
