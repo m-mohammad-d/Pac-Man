@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAC-MAN 3D // Arcade Experience</title>
+  <link rel="stylesheet" href="./src/styles/main.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ffe600'/><polygon points='50,50 95,25 95,75' fill='%23080812'/></svg>" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="webgl-canvas"></canvas>
+    
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+      <div class="hud-item">
+        <span class="hud-label">Score</span>
+        <span class="hud-value" id="hud-score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">High Score</span>
+        <span class="hud-value" id="hud-high-score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Level</span>
+        <span class="hud-value" id="hud-level">1</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Lives</span>
+        <div class="hud-lives-icons" id="hud-lives">
+          <div class="life-icon"></div>
+          <div class="life-icon"></div>
+          <div class="life-icon"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Power Pellet Countdown Bar -->
+    <div id="power-timer-container">
+      <div id="power-timer-bar"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div id="hud-actions">
+      <button id="btn-camera" class="icon-btn" title="Toggle Camera (C)">
+        <span>📷 Cam:</span> <span id="camera-badge">3RD PERSON</span>
+      </button>
+      <button id="btn-sound" class="icon-btn" title="Mute/Unmute (M)">
+        <span id="sound-icon">🔊</span>
+      </button>
+      <button id="btn-pause" class="icon-btn" title="Pause (P)">
+        <span id="pause-icon">⏸️</span>
+      </button>
+    </div>
+
+    <!-- Center Status Banner -->
+    <div id="game-banner" class="hidden">READY!</div>
+
+    <!-- Bottom Instructions Hint -->
+    <div id="control-hints">
+      [WASD / Arrows] Move &bull; [C] Camera &bull; [+/-] Zoom &bull; [P] Pause &bull; [M] Audio
+    </div>
+
+    <!-- Mobile Virtual Controls -->
+    <div id="mobile-controls">
+      <div class="dpad-btn dpad-up" id="dpad-up">▲</div>
+      <div class="dpad-btn dpad-down" id="dpad-down">▼</div>
+      <div class="dpad-btn dpad-left" id="dpad-left">◀</div>
+      <div class="dpad-btn dpad-right" id="dpad-right">▶</div>
+    </div>
+
+    <!-- Start Menu Overlay -->
+    <div id="start-modal" class="overlay-modal">
+      <div class="modal-card">
+        <h1 class="modal-title">PAC-MAN 3D</h1>
+        <p class="modal-subtitle">Neon 3D arcade remake powered by Three.js</p>
+
+        <div class="ghost-legend">
+          <div class="ghost-chip"><div class="ghost-dot dot-blinky"></div><span>Blinky</span></div>
+          <div class="ghost-chip"><div class="ghost-dot dot-pinky"></div><span>Pinky</span></div>
+          <div class="ghost-chip"><div class="ghost-dot dot-inky"></div><span>Inky</span></div>
+          <div class="ghost-chip"><div class="ghost-dot dot-clyde"></div><span>Clyde</span></div>
+        </div>
+
+        <div class="instructions-grid">
+          <div class="instruction-item">
+            <span class="key-badge">WASD / ARROWS</span>
+            <span>Move Pac-Man</span>
+          </div>
+          <div class="instruction-item">
+            <span class="key-badge">C KEY</span>
+            <span>Toggle 3 Cameras</span>
+          </div>
+          <div class="instruction-item">
+            <span class="key-badge">POWER PELLETS</span>
+            <span>Chomp Ghosts</span>
+          </div>
+          <div class="instruction-item">
+            <span class="key-badge">SIDE TUNNELS</span>
+            <span>Warp Screen</span>
+          </div>
+        </div>
+
+        <button id="btn-start" class="btn-arcade">START GAME</button>
+      </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="gameover-modal" class="overlay-modal hidden">
+      <div class="modal-card">
+        <h1 class="modal-title" style="color: var(--neon-red); text-shadow: 0 0 20px rgba(255, 42, 42, 0.8);">GAME OVER</h1>
+        <p class="modal-subtitle">Ghosts caught you in the maze!</p>
+        <div class="gameover-score">FINAL SCORE: <span id="gameover-final-score">0</span></div>
+        <button id="btn-restart" class="btn-arcade">PLAY AGAIN</button>
+      </div>
+    </div>
+
+    <!-- Victory / Next Level Overlay -->
+    <div id="victory-modal" class="overlay-modal hidden">
+      <div class="modal-card">
+        <h1 class="modal-title" style="color: var(--neon-green); text-shadow: 0 0 20px rgba(57, 255, 20, 0.8);">LEVEL CLEARED!</h1>
+        <p class="modal-subtitle">All pellets devoured! Ready for higher speed?</p>
+        <div class="gameover-score">CURRENT SCORE: <span id="victory-score">0</span></div>
+        <button id="btn-next-level" class="btn-arcade">NEXT LEVEL</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
+

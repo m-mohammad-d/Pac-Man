@@ -1,0 +1,25 @@
+{
+  "name": "pac-man",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "howler": "^2.2.4",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/howler": "^2.2.13",
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3"
+  }
+}
