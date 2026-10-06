@@ -1,8 +1,8 @@
 export type ResolutionPreset = 'native' | '1280x720' | '1920x1080' | '2560x1440';
-export type QualityPreset = 'low' | 'medium' | 'high' | 'ultra' | 'custom';
+export type QualityPreset = 'low' | 'medium' | 'high' | 'ultra' | 'custom' | 'mobile_low' | 'mobile_medium' | 'mobile_high';
 export type ShadowQuality = 'off' | 'low' | 'medium' | 'high' | 'ultra';
 export type DifficultyPreset = 'easy' | 'normal' | 'hard' | 'expert';
-export type CameraPreset = 'arcade' | 'cinematic' | 'competitive' | 'close' | 'wide' | 'custom';
+export type CameraPreset = 'arcade' | 'cinematic' | 'competitive' | 'close' | 'wide' | 'mobile' | 'custom';
 export type ColorblindMode = 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
 
 export interface GraphicsSettings {
@@ -19,6 +19,8 @@ export interface GraphicsSettings {
   fpsLimit: number;             // 30, 60, 120, 0 (uncapped)
   showFps: boolean;
   performanceMode: boolean;
+  dynamicQuality: boolean;      // Auto performance detection & dynamic quality adjustment
+  batterySaver: boolean;        // 30 FPS cap & reduced visuals to save battery
 }
 
 export interface AudioSettings {
@@ -56,6 +58,9 @@ export interface ControlSettings {
   cycleCamera: string;
   gamepadEnabled: boolean;
   gamepadDeadzone: number;
+  mobileControlsMode: 'joystick' | 'swipe' | 'both';
+  joystickSize: 'small' | 'medium' | 'large';
+  touchControlsEnabled: boolean;
 }
 
 export interface CameraCustomSettings {
@@ -71,6 +76,10 @@ export interface CameraCustomSettings {
   shakeAmount: number;      // 0.0 to 1.0
   minDistance: number;      // 6 to 15
   maxDistance: number;      // 20 to 50
+  mobileDistance: number;   // 10 to 40
+  mobileHeight: number;     // 12 to 45
+  mobileFov: number;        // 40 to 85
+  adaptivePortraitFov: boolean;
 }
 
 export interface AccessibilitySettings {
@@ -80,6 +89,7 @@ export interface AccessibilitySettings {
   highContrast: boolean;
   uiScale: number; // 100, 115, 130
   subtitles: boolean;
+  hapticsEnabled: boolean;
 }
 
 export interface DeveloperSettings {
@@ -117,7 +127,9 @@ export const DEFAULT_SETTINGS: GameSettings = {
     renderDistance: 250,
     fpsLimit: 0,
     showFps: false,
-    performanceMode: false
+    performanceMode: false,
+    dynamicQuality: true,
+    batterySaver: false
   },
   audio: {
     masterVolume: 80,
@@ -151,7 +163,10 @@ export const DEFAULT_SETTINGS: GameSettings = {
     openMenu: 'Escape',
     cycleCamera: 'KeyC',
     gamepadEnabled: true,
-    gamepadDeadzone: 0.2
+    gamepadDeadzone: 0.2,
+    mobileControlsMode: 'both',
+    joystickSize: 'medium',
+    touchControlsEnabled: true
   },
   camera: {
     preset: 'arcade',
@@ -165,7 +180,11 @@ export const DEFAULT_SETTINGS: GameSettings = {
     fov: 48,
     shakeAmount: 0.3,
     minDistance: 8.0,
-    maxDistance: 34.0
+    maxDistance: 34.0,
+    mobileDistance: 22.0,
+    mobileHeight: 25.0,
+    mobileFov: 56,
+    adaptivePortraitFov: true
   },
   accessibility: {
     colorblindMode: 'none',
@@ -173,7 +192,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
     reducedFlashing: false,
     highContrast: false,
     uiScale: 100,
-    subtitles: false
+    subtitles: false,
+    hapticsEnabled: true
   },
   developer: {
     fpsCounter: false,

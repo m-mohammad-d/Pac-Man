@@ -25,6 +25,10 @@ html, body {
   background-color: var(--bg-dark);
   color: #ffffff;
   font-family: var(--font-arcade);
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #game-container {
@@ -33,12 +37,15 @@ html, body {
   height: 100vh;
   overflow: hidden;
   background: radial-gradient(circle at center, #0f1226 0%, #05060b 100%);
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 #webgl-canvas {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 
 /* Scanlines overlay */
@@ -182,6 +189,9 @@ html, body {
   border: 1px solid var(--neon-blue);
   color: #ffffff;
   padding: 8px 14px;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
   border-radius: 8px;
   font-family: inherit;
   font-size: 13px;
@@ -191,6 +201,7 @@ html, body {
   gap: 6px;
   transition: all 0.2s ease;
   backdrop-filter: blur(6px);
+  touch-action: manipulation;
 }
 
 .icon-btn:hover {
@@ -198,6 +209,11 @@ html, body {
   border-color: var(--neon-yellow);
   box-shadow: 0 0 10px rgba(0, 210, 255, 0.6);
   transform: translateY(-2px);
+}
+
+.icon-btn:active {
+  transform: translateY(1px);
+  background: rgba(0, 210, 255, 0.4);
 }
 
 #camera-badge {
@@ -223,36 +239,139 @@ html, body {
   pointer-events: none;
 }
 
-/* Mobile Virtual D-Pad */
-#mobile-controls {
+/* ==================== PROFESSIONAL VIRTUAL JOYSTICK & TOUCH ==================== */
+.mobile-joystick-container {
   position: absolute;
-  bottom: 30px;
-  right: 30px;
-  width: 150px;
-  height: 150px;
-  z-index: 30;
-  display: none;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 35;
+  touch-action: none;
 }
 
-.dpad-btn {
+.joystick-touch-zone {
   position: absolute;
-  width: 48px;
-  height: 48px;
-  background: rgba(20, 30, 60, 0.8);
-  border: 2px solid var(--neon-blue);
-  border-radius: 12px;
-  color: var(--neon-yellow);
-  font-size: 20px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: calc(24px + env(safe-area-inset-left, 0px));
+  width: 200px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
-.dpad-up { top: 0; left: 51px; }
-.dpad-down { bottom: 0; left: 51px; }
-.dpad-left { top: 51px; left: 0; }
-.dpad-right { top: 51px; right: 0; }
+.joystick-base {
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 26, 56, 0.72) 0%, rgba(6, 10, 24, 0.45) 100%);
+  border: 2px solid rgba(0, 210, 255, 0.55);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.25), inset 0 0 14px rgba(0, 210, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  backdrop-filter: blur(6px);
+  touch-action: none;
+  pointer-events: none;
+}
+
+.joystick-base.active-touch {
+  opacity: 0.98;
+  border-color: var(--neon-yellow);
+  box-shadow: 0 0 26px rgba(255, 230, 0, 0.6), inset 0 0 16px rgba(255, 230, 0, 0.25);
+}
+
+.joystick-arrow {
+  position: absolute;
+  font-size: 13px;
+  color: rgba(0, 210, 255, 0.6);
+  pointer-events: none;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.joystick-arrow-up {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.joystick-arrow-down {
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.joystick-arrow-left {
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.joystick-arrow-right {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.joystick-arrow.active {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+}
+
+.joystick-arrow-up.active,
+.joystick-arrow-down.active {
+  transform: translateX(-50%) scale(1.35);
+}
+
+.joystick-arrow-left.active,
+.joystick-arrow-right.active {
+  transform: translateY(-50%) scale(1.35);
+}
+
+.joystick-knob {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff176 0%, #ffaa00 100%);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 16px rgba(255, 230, 0, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.knob-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32%;
+  height: 32%;
+  border-radius: 50%;
+  background: rgba(6, 8, 20, 0.7);
+  transform: translate(-50%, -50%);
+}
+
+.swipe-capture-surface {
+  position: absolute;
+  top: 75px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 75px);
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 12;
+  display: none;
+}
+
+#mobile-controls {
+  display: none !important;
+}
 
 /* Modals & Overlays */
 .overlay-modal {
@@ -419,31 +538,40 @@ html, body {
   100% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
 }
 
-@media (max-width: 768px) {
-  #hud {
-    min-width: 95vw;
-    gap: 12px;
-    padding: 8px 14px;
-  }
-  .hud-value {
-    font-size: 16px;
-  }
-  #mobile-controls {
-    display: block;
-  }
-  .settings-dialog {
-    height: 94vh !important;
-  }
-  .settings-body {
-    flex-direction: column !important;
-  }
-  .settings-sidebar {
-    width: 100% !important;
-    flex-direction: row !important;
-    overflow-x: auto;
-    border-right: none !important;
-    border-bottom: 1px solid rgba(0, 210, 255, 0.3) !important;
-  }
+/* ==================== PAUSE MODAL ==================== */
+.pause-card {
+  max-width: 440px;
+  padding: 36px 32px;
+}
+
+.pause-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.pause-btn {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border-radius: 10px;
+}
+
+.btn-secondary-arcade {
+  background: rgba(14, 22, 48, 0.9);
+  border: 2px solid var(--neon-blue);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
+}
+
+.btn-secondary-arcade:hover {
+  background: rgba(0, 210, 255, 0.25);
+  border-color: var(--neon-yellow);
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.6);
 }
 
 /* ==================== SETTINGS MODAL ==================== */
@@ -861,6 +989,352 @@ body.high-contrast .modal-card {
 
 body.high-contrast .hud-label {
   color: #ffffff !important;
+}
+
+/* ==================== RESPONSIVE DESIGN & MOBILE OPTIMIZATIONS ==================== */
+
+/* Minimum 44x44px touch targets across all interactive elements */
+button,
+.icon-btn,
+.btn-arcade,
+.btn-action,
+.key-bind-btn,
+.settings-nav-btn,
+.btn-close-x {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Tablet & Smaller Desktops */
+@media (max-width: 1024px) {
+  #hud {
+    min-width: unset;
+    width: auto;
+    max-width: calc(100vw - 32px);
+    gap: 20px;
+    padding: 10px 20px;
+  }
+}
+
+/* Mobile Devices (Phones & Portrait Tablets) */
+@media (max-width: 768px) {
+  #hud {
+    position: absolute;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    max-width: 520px;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 12px;
+    justify-content: space-around;
+  }
+
+  .hud-item {
+    min-width: 0;
+  }
+
+  .hud-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+
+  .hud-value {
+    font-size: 16px;
+    letter-spacing: 0;
+  }
+
+  .life-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  #power-timer-container {
+    top: calc(62px + env(safe-area-inset-top, 0px));
+    width: min(280px, 80vw);
+    height: 8px;
+  }
+
+  /* HUD Quick Action Buttons */
+  #hud-actions {
+    top: auto;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    right: calc(14px + env(safe-area-inset-right, 0px));
+    flex-direction: column-reverse;
+    gap: 8px;
+    z-index: 40;
+  }
+
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    justify-content: center;
+  }
+
+  /* Compact camera button on mobile */
+  #btn-camera span:first-child {
+    display: none;
+  }
+
+  /* Hide keyboard control hint bar on touch screens */
+  #control-hints {
+    display: none !important;
+  }
+
+  /* Floating Game Banner */
+  #game-banner {
+    font-size: 32px;
+    letter-spacing: 4px;
+    width: 90%;
+    text-align: center;
+  }
+
+  /* Fullscreen Mobile Settings Dialog */
+  .settings-dialog {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .settings-header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    padding-left: calc(16px + env(safe-area-inset-left, 0px));
+    padding-right: calc(16px + env(safe-area-inset-right, 0px));
+  }
+
+  .settings-body {
+    flex-direction: column !important;
+  }
+
+  .settings-sidebar {
+    width: 100% !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.3) !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .settings-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-nav-btn {
+    min-height: 44px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+
+  .settings-content {
+    padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 16px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 48px;
+  }
+
+  .setting-row label {
+    font-size: 14px;
+    min-height: 24px;
+  }
+
+  .arcade-select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .arcade-slider {
+    width: 100%;
+    height: 10px;
+  }
+
+  .arcade-slider::-webkit-slider-thumb {
+    width: 26px;
+    height: 26px;
+  }
+
+  .arcade-toggle {
+    width: 52px;
+    height: 30px;
+  }
+
+  .arcade-toggle::after {
+    width: 22px;
+    height: 22px;
+    top: 3px;
+    left: 4px;
+  }
+
+  .arcade-toggle:checked::after {
+    left: 24px;
+  }
+
+  .settings-footer {
+    padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footer-left,
+  .footer-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .footer-left .btn-action,
+  .footer-right .btn-action {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .controls-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modal Cards on Mobile */
+  .modal-card {
+    padding: 28px 20px;
+    border-radius: 16px;
+    width: 92%;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-title {
+    font-size: 28px;
+    letter-spacing: 2px;
+  }
+
+  .instructions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+    font-size: 12px;
+  }
+
+  .btn-arcade {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 16px;
+  }
+}
+
+/* Compact Smartphones (iPhone SE, smaller Android phones <= 480px) */
+@media (max-width: 480px) {
+  #hud {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .hud-label {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+
+  .hud-value {
+    font-size: 14px;
+  }
+
+  .life-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .modal-title {
+    font-size: 24px;
+  }
+
+  .modal-subtitle {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .ghost-legend {
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .ghost-chip {
+    font-size: 11px;
+  }
+}
+
+/* Landscape Mode on Phones (short screen height <= 520px) */
+@media (max-height: 520px) and (orientation: landscape) {
+  #hud {
+    top: calc(4px + env(safe-area-inset-top, 0px));
+    padding: 4px 14px;
+    gap: 12px;
+  }
+
+  .hud-label {
+    font-size: 9px;
+    margin-bottom: 0;
+  }
+
+  .hud-value {
+    font-size: 14px;
+  }
+
+  #hud-actions {
+    flex-direction: row;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    gap: 6px;
+  }
+
+  .icon-btn {
+    min-height: 40px;
+    min-width: 40px;
+    padding: 6px 10px;
+  }
+
+  .modal-card {
+    padding: 20px 24px;
+    max-height: 88vh;
+  }
+
+  .modal-title {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .modal-subtitle {
+    margin-bottom: 12px;
+  }
+
+  .instructions-grid {
+    margin-bottom: 14px;
+  }
+
+  .joystick-touch-zone {
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: calc(8px + env(safe-area-inset-left, 0px));
+  }
 }
 
 

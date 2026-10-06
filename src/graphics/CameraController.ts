@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CameraMode } from '../utils/Constants';
 import { CameraCustomSettings } from '../settings/SettingsTypes';
+import { ResponsiveManager } from '../utils/ResponsiveManager';
 
 export interface CameraSettings {
   distance: number;
@@ -32,6 +33,12 @@ export interface CameraSettings {
   menuPitch: number;
 
   zoomStep: number;
+
+  // Mobile camera settings
+  mobileDistance: number;
+  mobileHeight: number;
+  mobileFov: number;
+  adaptivePortraitFov: boolean;
 }
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
@@ -63,7 +70,12 @@ export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   menuDistance: 28.0,
   menuPitch: 0.95,
 
-  zoomStep: 2.0
+  zoomStep: 2.0,
+
+  mobileDistance: 22.0,
+  mobileHeight: 25.0,
+  mobileFov: 56,
+  adaptivePortraitFov: true
 };
 
 export class CameraController {
@@ -122,17 +134,27 @@ export class CameraController {
 
   public updateAspect(aspectRatio: number): void {
     this.camera.aspect = aspectRatio;
+    this.updateAdaptiveFov();
+    this.camera.updateProjectionMatrix();
+  }
+
+  public updateAdaptiveFov(): void {
+    const responsive = ResponsiveManager.getInstance();
+    const baseFov = this.mode === CameraMode.OVERVIEW
+      ? this.settings.overviewFov
+      : (responsive.isMobile() ? this.settings.mobileFov : this.settings.fov);
+
+    if (this.settings.adaptivePortraitFov && this.mode !== CameraMode.MENU) {
+      this.camera.fov = responsive.getAdaptiveFov(baseFov);
+    } else {
+      this.camera.fov = baseFov;
+    }
     this.camera.updateProjectionMatrix();
   }
 
   public setMode(mode: CameraMode): void {
     this.mode = mode;
-    if (mode === CameraMode.OVERVIEW) {
-      this.camera.fov = this.settings.overviewFov;
-    } else {
-      this.camera.fov = this.settings.fov;
-    }
-    this.camera.updateProjectionMatrix();
+    this.updateAdaptiveFov();
   }
 
   public toggleMode(): CameraMode {
@@ -194,9 +216,12 @@ export class CameraController {
     this.settings.rotationSpeed = custom.rotationSpeed;
     this.settings.minDistance = custom.minDistance;
     this.settings.maxDistance = custom.maxDistance;
+    this.settings.mobileDistance = custom.mobileDistance;
+    this.settings.mobileHeight = custom.mobileHeight;
+    this.settings.mobileFov = custom.mobileFov;
+    this.settings.adaptivePortraitFov = custom.adaptivePortraitFov;
     this.shakeMultiplier = custom.shakeAmount;
-    this.camera.fov = custom.fov;
-    this.camera.updateProjectionMatrix();
+    this.updateAdaptiveFov();
   }
 
   public triggerScreenShake(amount: number = 0.5): void {
@@ -231,17 +256,23 @@ export class CameraController {
   }
 
   private updateGameplayCamera(targetPos: THREE.Vector3, deltaTime: number): void {
-    // 1. Establish LookAt target (centered slightly ahead of Pac-Man in corridor)
+    const responsive = ResponsiveManager.getInstance();
+    const isMobile = responsive.isMobile();
+    const isPortrait = responsive.isPortrait();
+
+    // 1. Establish LookAt target (centered slightly ahead of Pac-Man, compensated for portrait view)
+    const targetOffsetY = this.settings.targetOffsetY + (isPortrait ? 0.6 : 0.0);
+    const lookAheadZ = isPortrait ? -0.8 : this.settings.lookAheadZ;
+
     this.desiredLookAt.set(
       targetPos.x,
-      targetPos.y + this.settings.targetOffsetY,
-      targetPos.z + this.settings.lookAheadZ
+      targetPos.y + targetOffsetY,
+      targetPos.z + lookAheadZ
     );
 
-    // 2. Fixed angle offset vector
-    // Calculate spherical/polar offset based on fixed pitch and yaw
-    const dist = this.settings.distance;
-    const height = this.settings.height;
+    // 2. Fixed angle offset vector with mobile distance & height compensation
+    const dist = isMobile ? this.settings.mobileDistance : this.settings.distance;
+    const height = isMobile ? this.settings.mobileHeight : this.settings.height;
 
     // Fixed South-to-North orientation with optional user yaw
     const offsetX = Math.sin(this.settings.yawAngle) * dist;

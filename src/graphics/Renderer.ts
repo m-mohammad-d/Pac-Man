@@ -1,14 +1,19 @@
 import * as THREE from 'three';
 import { GraphicsSettings, ResolutionPreset } from '../settings/SettingsTypes';
+import { ResponsiveManager, ViewportInfo } from '../utils/ResponsiveManager';
 
 export class Renderer {
   public renderer: THREE.WebGLRenderer;
   public scene: THREE.Scene;
   public canvas: HTMLCanvasElement;
   private currentResolution: ResolutionPreset = 'native';
+  private currentSettings?: GraphicsSettings;
+  private responsiveManager: ResponsiveManager;
+  private unsubscribeResponsive?: () => void;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    this.responsiveManager = ResponsiveManager.getInstance();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x060814);
     this.scene.fog = new THREE.FogExp2(0x060814, 0.012);
@@ -19,37 +24,61 @@ export class Renderer {
       powerPreference: 'high-performance'
     });
 
-    this.updateDimensions();
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.25;
 
-    window.addEventListener('resize', this.onResize.bind(this));
+    this.unsubscribeResponsive = this.responsiveManager.subscribe((info) => {
+      this.onResponsiveChange(info);
+    });
+
+    this.updateDimensions();
   }
 
   public applySettings(settings: GraphicsSettings): void {
+    this.currentSettings = settings;
     this.currentResolution = settings.resolution;
     this.updateDimensions();
 
     this.renderer.shadowMap.enabled = settings.shadowsEnabled;
     this.renderer.toneMappingExposure = 1.0 + (settings.bloomGlowIntensity - 1.0) * 0.4;
 
-    const pixelRatio = settings.performanceMode
-      ? 1.0
-      : settings.antiAliasing
-      ? Math.min(window.devicePixelRatio, 2)
-      : 1.0;
-    this.renderer.setPixelRatio(pixelRatio);
+    this.updatePixelRatio();
   }
 
-  private onResize(): void {
+  private updatePixelRatio(): void {
+    const isMobile = this.responsiveManager.isMobile();
+    const s = this.currentSettings;
+
+    let targetDpr = window.devicePixelRatio || 1;
+
+    if (s?.batterySaver || s?.performanceMode) {
+      targetDpr = 1.0;
+    } else if (s?.preset === 'mobile_low' || s?.preset === 'low') {
+      targetDpr = Math.min(1.0, window.devicePixelRatio || 1);
+    } else if (s?.preset === 'mobile_medium') {
+      targetDpr = Math.min(1.25, window.devicePixelRatio || 1);
+    } else if (s?.preset === 'mobile_high') {
+      targetDpr = Math.min(1.5, window.devicePixelRatio || 1);
+    } else if (isMobile) {
+      targetDpr = Math.min(1.5, window.devicePixelRatio || 1);
+    } else {
+      targetDpr = s?.antiAliasing ? Math.min(window.devicePixelRatio || 1, 2) : 1.0;
+    }
+
+    this.renderer.setPixelRatio(targetDpr);
+  }
+
+  private onResponsiveChange(_info: ViewportInfo): void {
     this.updateDimensions();
+    this.updatePixelRatio();
   }
 
   private updateDimensions(): void {
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    const info = this.responsiveManager.getInfo();
+    let width = info.width;
+    let height = info.height;
 
     if (this.currentResolution === '1280x720') {
       width = Math.min(width, 1280);
@@ -73,7 +102,7 @@ export class Renderer {
   }
 
   public getAspectRatio(): number {
-    return window.innerWidth / window.innerHeight;
+    return this.responsiveManager.getAspectRatio();
   }
 
   public render(camera: THREE.Camera): void {
@@ -81,7 +110,9 @@ export class Renderer {
   }
 
   public dispose(): void {
-    window.removeEventListener('resize', this.onResize.bind(this));
+    if (this.unsubscribeResponsive) {
+      this.unsubscribeResponsive();
+    }
     this.renderer.dispose();
   }
 }

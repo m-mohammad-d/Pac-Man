@@ -23,6 +23,9 @@ import {
   TILE_SIZE
 } from '../utils/Constants';
 import { MathUtils } from '../utils/MathUtils';
+import { MobileController } from '../input/MobileController';
+import { ResponsiveManager } from '../utils/ResponsiveManager';
+import { HapticManager } from '../utils/HapticManager';
 
 export class Game {
   private renderer: Renderer;
@@ -39,6 +42,11 @@ export class Game {
   private scoreManager: ScoreManager;
   private gameState: GameStateManager;
   private soundManager: SoundManager;
+
+  // Mobile, Touch, and Responsive Systems
+  private mobileController: MobileController;
+  private responsiveManager: ResponsiveManager;
+  private hapticManager: HapticManager;
 
   // Settings & Configuration
   private settingsManager: SettingsManager;
@@ -59,6 +67,7 @@ export class Game {
   private subtitlesBanner: HTMLElement | null = null;
 
   private startModal: HTMLElement | null = null;
+  private pauseModal: HTMLElement | null = null;
   private gameOverModal: HTMLElement | null = null;
   private victoryModal: HTMLElement | null = null;
   private gameOverFinalScore: HTMLElement | null = null;
@@ -69,6 +78,8 @@ export class Game {
   private isRunning: boolean = false;
   private smoothedFps: number = 60;
   private subtitleTimer: number = 0;
+  private fpsHistory: number[] = [];
+  private dynamicQualityCooldown: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -92,8 +103,22 @@ export class Game {
     this.gameState = new GameStateManager();
     this.soundManager = new SoundManager();
 
+    // Mobile & Device Subsystems
+    this.responsiveManager = ResponsiveManager.getInstance();
+    this.hapticManager = HapticManager.getInstance();
+
     // Initialize Settings Architecture
     this.settingsManager = SettingsManager.getInstance();
+    const currentSettings = this.settingsManager.getSettings();
+
+    // Auto-detect mobile devices for optimal initial preset if on default desktop settings
+    if (this.responsiveManager.isMobile()) {
+      if (currentSettings.graphics.preset === 'high') {
+        const isConstrained = typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+        this.settingsManager.applyQualityPreset(isConstrained ? 'mobile_low' : 'mobile_medium');
+      }
+    }
+
     this.settingsUI = new SettingsUI(this.settingsManager);
 
     this.settingsUI.setCallbacks({
@@ -119,6 +144,23 @@ export class Game {
 
     this.settingsManager.subscribe((settings) => {
       this.applyAllSettings(settings);
+    });
+
+    // Initialize Mobile Touch Controller
+    this.mobileController = new MobileController({
+      mode: currentSettings.controls.mobileControlsMode,
+      sizePreset: currentSettings.controls.joystickSize,
+      enabled: currentSettings.controls.touchControlsEnabled,
+      onDirection: (dir) => {
+        if (this.gameState.currentState === PlayState.PLAYING) {
+          this.player.setRequestedDirection(dir);
+        }
+      }
+    });
+
+    // Handle Orientation and Resize Changes via ResponsiveManager
+    this.responsiveManager.subscribe(() => {
+      this.cameraController.updateAspect(this.renderer.getAspectRatio());
     });
 
     this.initGhosts();
@@ -154,11 +196,19 @@ export class Game {
     this.scoreManager.startingLives = s.gameplay.startingLives;
     this.scoreManager.extraLivesFrequency = s.gameplay.extraLivesFrequency;
 
-    // 5. Accessibility
+    // 5. Controls & Mobile
+    if (this.mobileController) {
+      this.mobileController.setMode(s.controls.mobileControlsMode);
+      this.mobileController.setSizePreset(s.controls.joystickSize);
+      this.mobileController.setEnabled(s.controls.touchControlsEnabled);
+    }
+
+    // 6. Accessibility & Haptics
+    this.hapticManager.enabled = s.accessibility.hapticsEnabled;
     document.body.classList.toggle('high-contrast', s.accessibility.highContrast);
     document.documentElement.style.fontSize = `${(s.accessibility.uiScale / 100) * 16}px`;
 
-    // 6. Developer HUD
+    // 7. Developer HUD
     if (this.devHud) {
       if (s.developer.fpsCounter || s.graphics.showFps || s.developer.showCoordinates) {
         this.devHud.classList.remove('hidden');
@@ -222,6 +272,7 @@ export class Game {
     this.subtitlesBanner = document.getElementById('subtitles-banner');
 
     this.startModal = document.getElementById('start-modal');
+    this.pauseModal = document.getElementById('pause-modal');
     this.gameOverModal = document.getElementById('gameover-modal');
     this.victoryModal = document.getElementById('victory-modal');
     this.gameOverFinalScore = document.getElementById('gameover-final-score');
@@ -274,6 +325,20 @@ export class Game {
 
     document.getElementById('btn-pause')?.addEventListener('click', () => {
       this.togglePause();
+    });
+
+    // Pause Menu Modal Actions
+    document.getElementById('btn-pause-resume')?.addEventListener('click', () => {
+      this.resumeGame();
+    });
+
+    document.getElementById('btn-pause-restart')?.addEventListener('click', () => {
+      if (this.pauseModal) this.pauseModal.classList.add('hidden');
+      this.restartGame();
+    });
+
+    document.getElementById('btn-pause-settings')?.addEventListener('click', () => {
+      this.settingsUI.open();
     });
 
     // Mobile Virtual Controls
@@ -371,6 +436,7 @@ export class Game {
 
   private startGame(): void {
     if (this.startModal) this.startModal.classList.add('hidden');
+    if (this.pauseModal) this.pauseModal.classList.add('hidden');
     this.scoreManager.resetGame();
     this.resetField();
     this.gameState.setState(PlayState.READY);
@@ -379,6 +445,7 @@ export class Game {
 
   private restartGame(): void {
     if (this.gameOverModal) this.gameOverModal.classList.add('hidden');
+    if (this.pauseModal) this.pauseModal.classList.add('hidden');
     this.scoreManager.resetGame();
     this.resetAllPellets();
     this.resetField();
@@ -388,6 +455,7 @@ export class Game {
 
   private startNextLevel(): void {
     if (this.victoryModal) this.victoryModal.classList.add('hidden');
+    if (this.pauseModal) this.pauseModal.classList.add('hidden');
     this.scoreManager.nextLevel();
     this.resetAllPellets();
     this.resetField();
@@ -434,12 +502,21 @@ export class Game {
   private togglePause(): void {
     if (this.gameState.currentState === PlayState.PLAYING) {
       this.gameState.currentState = PlayState.PAUSED;
-      this.showBanner('PAUSED');
+      if (this.pauseModal) this.pauseModal.classList.remove('hidden');
       if (this.pauseIcon) this.pauseIcon.textContent = '▶️';
+      this.soundManager.stopSiren();
     } else if (this.gameState.currentState === PlayState.PAUSED) {
+      this.resumeGame();
+    }
+  }
+
+  private resumeGame(): void {
+    if (this.gameState.currentState === PlayState.PAUSED) {
       this.gameState.currentState = PlayState.PLAYING;
-      this.hideBanner();
+      if (this.pauseModal) this.pauseModal.classList.add('hidden');
       if (this.pauseIcon) this.pauseIcon.textContent = '⏸️';
+      this.hideBanner();
+      this.soundManager.startSiren();
     }
   }
 
@@ -513,21 +590,64 @@ export class Game {
   private gameLoop(time: number): void {
     if (!this.isRunning) return;
 
+    const s = this.settingsManager.getSettings();
+
+    // Battery Saver Mode: Cap at ~30 FPS to reduce GPU heat and battery draw
+    if (s.graphics.batterySaver && (time - this.lastTime) < 31) {
+      requestAnimationFrame(this.gameLoop.bind(this));
+      return;
+    }
+
     const rawDelta = Math.min((time - this.lastTime) / 1000, 0.1);
     this.lastTime = time;
 
-    // Smoothed FPS for diagnostics
+    // Smoothed FPS for diagnostics & dynamic quality detection
     const currentFps = 1 / (rawDelta || 0.016);
     this.smoothedFps = Math.round(this.smoothedFps * 0.9 + currentFps * 0.1);
 
+    // Dynamic Quality Monitoring
+    if (s.graphics.dynamicQuality) {
+      this.fpsHistory.push(currentFps);
+      if (this.fpsHistory.length > 90) this.fpsHistory.shift();
+
+      if (this.dynamicQualityCooldown > 0) {
+        this.dynamicQualityCooldown -= rawDelta;
+      } else if (this.fpsHistory.length >= 60) {
+        const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
+        if (avgFps < 38) {
+          this.triggerDynamicQualityDowngrade();
+        }
+      }
+    }
+
     // Apply Game Speed Multiplier
-    const s = this.settingsManager.getSettings();
     const effectiveDelta = rawDelta * s.gameplay.gameSpeedMultiplier;
 
     this.update(effectiveDelta, rawDelta);
     this.render();
 
     requestAnimationFrame(this.gameLoop.bind(this));
+  }
+
+  private triggerDynamicQualityDowngrade(): void {
+    const s = this.settingsManager.getSettings();
+    const curPreset = s.graphics.preset;
+    let nextPreset: any = null;
+
+    if (curPreset === 'ultra' || curPreset === 'high') {
+      nextPreset = this.responsiveManager.isMobile() ? 'mobile_medium' : 'medium';
+    } else if (curPreset === 'medium' || curPreset === 'mobile_high') {
+      nextPreset = this.responsiveManager.isMobile() ? 'mobile_low' : 'low';
+    } else if (curPreset === 'mobile_medium') {
+      nextPreset = 'mobile_low';
+    }
+
+    if (nextPreset) {
+      this.settingsManager.applyQualityPreset(nextPreset);
+      this.dynamicQualityCooldown = 18.0;
+      this.fpsHistory = [];
+      this.showSubtitle(`⚡ Performance adjusted: switched to ${nextPreset} for smooth 60 FPS`);
+    }
   }
 
   private update(deltaTime: number, realDelta: number): void {
@@ -628,6 +748,7 @@ export class Game {
           this.gameState.triggerFrightened(s.gameplay.powerPelletDuration);
           this.ghosts.forEach((g) => g.setFrightened());
           this.soundManager.playPowerPellet();
+          this.hapticManager.powerPellet();
           this.effects.spawnPelletBurst(hitPellet.position, true);
 
           if (s.accessibility.screenShake) {
@@ -636,6 +757,7 @@ export class Game {
         } else {
           this.scoreManager.addScore(PELLET_SCORE);
           this.soundManager.playWaka();
+          this.hapticManager.pellet();
           this.effects.spawnPelletBurst(hitPellet.position, false);
         }
 
@@ -653,6 +775,7 @@ export class Game {
           ghostHit.ghost.setEaten();
           this.scoreManager.eatGhost();
           this.soundManager.playEatGhost();
+          this.hapticManager.eatGhost();
           this.effects.spawnGhostBurst(ghostHit.ghost.position);
 
           if (s.accessibility.screenShake) {
@@ -681,6 +804,7 @@ export class Game {
     const s = this.settingsManager.getSettings();
     this.soundManager.stopSiren();
     this.soundManager.playDeath();
+    this.hapticManager.death();
     this.effects.spawnDeathBurst(this.player.position);
 
     if (s.accessibility.screenShake) {
@@ -707,6 +831,7 @@ export class Game {
   private handleLevelCleared(): void {
     this.soundManager.stopSiren();
     this.soundManager.playVictory();
+    this.hapticManager.levelClear();
     this.gameState.setState(PlayState.LEVEL_CLEARED);
     this.cameraController.setMode(CameraMode.MENU);
     this.updateCameraBadge();

@@ -72,7 +72,7 @@ export class Effects {
   }
 
   public spawnGhostBurst(pos: THREE.Vector3, colorHex: number = 0x00e5ff): void {
-    const count = 40;
+    const count = Math.max(4, Math.round(40 * this.qualityMultiplier));
     const baseColor = new THREE.Color(colorHex);
 
     for (let i = 0; i < count; i++) {
@@ -97,7 +97,7 @@ export class Effects {
   }
 
   public spawnDeathBurst(pos: THREE.Vector3): void {
-    const count = 60;
+    const count = Math.max(6, Math.round(60 * this.qualityMultiplier));
     const yellowColor = new THREE.Color(0xffe600);
 
     for (let i = 0; i < count; i++) {

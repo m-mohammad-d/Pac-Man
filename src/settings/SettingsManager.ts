@@ -110,26 +110,29 @@ export class SettingsManager {
     this.settings.graphics.preset = preset;
     switch (preset) {
       case 'low':
+      case 'mobile_low':
         this.settings.graphics.shadowQuality = 'off';
         this.settings.graphics.shadowsEnabled = false;
         this.settings.graphics.antiAliasing = false;
         this.settings.graphics.ambientLightQuality = 0.8;
-        this.settings.graphics.bloomGlowIntensity = 0.5;
-        this.settings.graphics.particleQuality = 0.4;
+        this.settings.graphics.bloomGlowIntensity = 0.4;
+        this.settings.graphics.particleQuality = 0.25;
         this.settings.graphics.renderDistance = 150;
         this.settings.graphics.performanceMode = true;
         break;
       case 'medium':
-        this.settings.graphics.shadowQuality = 'medium';
+      case 'mobile_medium':
+        this.settings.graphics.shadowQuality = 'low';
         this.settings.graphics.shadowsEnabled = true;
         this.settings.graphics.antiAliasing = false;
         this.settings.graphics.ambientLightQuality = 1.0;
         this.settings.graphics.bloomGlowIntensity = 0.8;
-        this.settings.graphics.particleQuality = 0.75;
+        this.settings.graphics.particleQuality = 0.6;
         this.settings.graphics.renderDistance = 200;
         this.settings.graphics.performanceMode = false;
         break;
       case 'high':
+      case 'mobile_high':
         this.settings.graphics.shadowQuality = 'high';
         this.settings.graphics.shadowsEnabled = true;
         this.settings.graphics.antiAliasing = true;
@@ -236,6 +239,14 @@ export class SettingsManager {
         this.settings.camera.yawAngle = 0;
         this.settings.camera.fov = 64;
         this.settings.camera.smoothSpeed = 4.5;
+        break;
+      case 'mobile':
+        this.settings.camera.distance = 22.0;
+        this.settings.camera.height = 25.0;
+        this.settings.camera.pitchAngle = 58;
+        this.settings.camera.yawAngle = 0;
+        this.settings.camera.fov = 56;
+        this.settings.camera.smoothSpeed = 6.0;
         break;
     }
   }

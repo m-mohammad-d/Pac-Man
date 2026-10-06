@@ -1,4 +1,5 @@
 import { SettingsManager } from '../settings/SettingsManager';
+import { HapticManager } from '../utils/HapticManager';
 import {
   GameSettings,
   QualityPreset,
@@ -248,9 +249,12 @@ export class SettingsUI {
         <div class="setting-row">
           <label>Quality Preset</label>
           <select id="set-preset" class="arcade-select">
-            <option value="low" ${s.preset === 'low' ? 'selected' : ''}>Low (Performance)</option>
-            <option value="medium" ${s.preset === 'medium' ? 'selected' : ''}>Medium</option>
-            <option value="high" ${s.preset === 'high' ? 'selected' : ''}>High</option>
+            <option value="mobile_low" ${s.preset === 'mobile_low' ? 'selected' : ''}>📱 Mobile Low (Fastest)</option>
+            <option value="mobile_medium" ${s.preset === 'mobile_medium' ? 'selected' : ''}>📱 Mobile Medium (Balanced)</option>
+            <option value="mobile_high" ${s.preset === 'mobile_high' ? 'selected' : ''}>📱 Mobile High (Maximum)</option>
+            <option value="low" ${s.preset === 'low' ? 'selected' : ''}>Low (Desktop Performance)</option>
+            <option value="medium" ${s.preset === 'medium' ? 'selected' : ''}>Medium (Desktop Standard)</option>
+            <option value="high" ${s.preset === 'high' ? 'selected' : ''}>High (Desktop Quality)</option>
             <option value="ultra" ${s.preset === 'ultra' ? 'selected' : ''}>Ultra (Maximum)</option>
             <option value="custom" ${s.preset === 'custom' ? 'selected' : ''}>Custom</option>
           </select>
@@ -283,7 +287,17 @@ export class SettingsUI {
         </div>
 
         <div class="setting-row">
-          <label>Performance Battery Mode</label>
+          <label>Dynamic Quality Adjustment</label>
+          <input type="checkbox" id="set-dynamic-quality" class="arcade-toggle" ${s.dynamicQuality ? 'checked' : ''} />
+        </div>
+
+        <div class="setting-row">
+          <label>Battery Saver Mode (30 FPS Cap)</label>
+          <input type="checkbox" id="set-battery-saver" class="arcade-toggle" ${s.batterySaver ? 'checked' : ''} />
+        </div>
+
+        <div class="setting-row">
+          <label>Performance Mode</label>
           <input type="checkbox" id="set-perf-mode" class="arcade-toggle" ${s.performanceMode ? 'checked' : ''} />
         </div>
       </div>
@@ -473,6 +487,33 @@ export class SettingsUI {
       </div>
 
       <div class="settings-group">
+        <h3 class="group-title">📱 Mobile Touch Controls</h3>
+
+        <div class="setting-row">
+          <label>Enable Touch Controls</label>
+          <input type="checkbox" id="set-touch-enabled" class="arcade-toggle" ${c.touchControlsEnabled ? 'checked' : ''} />
+        </div>
+
+        <div class="setting-row">
+          <label>Mobile Control Mode</label>
+          <select id="set-touch-mode" class="arcade-select">
+            <option value="both" ${c.mobileControlsMode === 'both' ? 'selected' : ''}>🕹️ Joystick + 👆 Swipe Gestures</option>
+            <option value="joystick" ${c.mobileControlsMode === 'joystick' ? 'selected' : ''}>🕹️ Virtual Joystick Only</option>
+            <option value="swipe" ${c.mobileControlsMode === 'swipe' ? 'selected' : ''}>👆 Swipe Gestures Only</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label>Joystick Size</label>
+          <select id="set-joystick-size" class="arcade-select">
+            <option value="small" ${c.joystickSize === 'small' ? 'selected' : ''}>Compact (Small)</option>
+            <option value="medium" ${c.joystickSize === 'medium' ? 'selected' : ''}>Standard (Medium)</option>
+            <option value="large" ${c.joystickSize === 'large' ? 'selected' : ''}>Expanded (Large / Tablet)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
         <h3 class="group-title">Gamepad / Controller</h3>
         <div class="setting-row">
           <label>Enable Controller Input</label>
@@ -494,6 +535,7 @@ export class SettingsUI {
         <div class="setting-row">
           <label>Camera Angle Style</label>
           <select id="set-cam-preset" class="arcade-select">
+            <option value="mobile" ${cam.preset === 'mobile' ? 'selected' : ''}>📱 Mobile Optimized View</option>
             <option value="arcade" ${cam.preset === 'arcade' ? 'selected' : ''}>Classic Arcade (~54°)</option>
             <option value="cinematic" ${cam.preset === 'cinematic' ? 'selected' : ''}>Cinematic (Low 42°)</option>
             <option value="competitive" ${cam.preset === 'competitive' ? 'selected' : ''}>Competitive (Top-Down 76°)</option>
@@ -501,6 +543,30 @@ export class SettingsUI {
             <option value="wide" ${cam.preset === 'wide' ? 'selected' : ''}>Wide View</option>
             <option value="custom" ${cam.preset === 'custom' ? 'selected' : ''}>Custom</option>
           </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3 class="group-title">📱 Mobile Camera Calibration</h3>
+
+        <div class="setting-row">
+          <label>Adaptive Portrait FOV</label>
+          <input type="checkbox" id="set-cam-adaptive-fov" class="arcade-toggle" ${cam.adaptivePortraitFov ? 'checked' : ''} />
+        </div>
+
+        <div class="setting-row">
+          <label>Mobile Distance: <span id="val-cam-mob-dist">${cam.mobileDistance.toFixed(1)}m</span></label>
+          <input type="range" id="set-cam-mob-dist" min="10" max="38" step="1" value="${cam.mobileDistance}" class="arcade-slider" />
+        </div>
+
+        <div class="setting-row">
+          <label>Mobile Height: <span id="val-cam-mob-height">${cam.mobileHeight.toFixed(1)}m</span></label>
+          <input type="range" id="set-cam-mob-height" min="12" max="42" step="1" value="${cam.mobileHeight}" class="arcade-slider" />
+        </div>
+
+        <div class="setting-row">
+          <label>Mobile Base FOV: <span id="val-cam-mob-fov">${cam.mobileFov}°</span></label>
+          <input type="range" id="set-cam-mob-fov" min="40" max="80" step="1" value="${cam.mobileFov}" class="arcade-slider" />
         </div>
       </div>
 
@@ -554,6 +620,11 @@ export class SettingsUI {
             <option value="deuteranopia" ${acc.colorblindMode === 'deuteranopia' ? 'selected' : ''}>Deuteranopia (Green Weak)</option>
             <option value="tritanopia" ${acc.colorblindMode === 'tritanopia' ? 'selected' : ''}>Tritanopia (Blue Weak)</option>
           </select>
+        </div>
+
+        <div class="setting-row">
+          <label>Haptic Vibration Feedback</label>
+          <input type="checkbox" id="set-haptics" class="arcade-toggle" ${acc.hapticsEnabled ? 'checked' : ''} />
         </div>
 
         <div class="setting-row">
@@ -702,6 +773,16 @@ export class SettingsUI {
     perf?.addEventListener('change', () => {
       this.manager.updateGraphics({ performanceMode: perf.checked });
     });
+
+    const dynQuality = document.getElementById('set-dynamic-quality') as HTMLInputElement;
+    dynQuality?.addEventListener('change', () => {
+      this.manager.updateGraphics({ dynamicQuality: dynQuality.checked });
+    });
+
+    const battSaver = document.getElementById('set-battery-saver') as HTMLInputElement;
+    battSaver?.addEventListener('change', () => {
+      this.manager.updateGraphics({ batterySaver: battSaver.checked });
+    });
   }
 
   private bindAudioEvents(): void {
@@ -796,6 +877,21 @@ export class SettingsUI {
       });
     });
 
+    const touchEnabled = document.getElementById('set-touch-enabled') as HTMLInputElement;
+    touchEnabled?.addEventListener('change', () => {
+      this.manager.updateControls({ touchControlsEnabled: touchEnabled.checked });
+    });
+
+    const touchMode = document.getElementById('set-touch-mode') as HTMLSelectElement;
+    touchMode?.addEventListener('change', () => {
+      this.manager.updateControls({ mobileControlsMode: touchMode.value as any });
+    });
+
+    const joySize = document.getElementById('set-joystick-size') as HTMLSelectElement;
+    joySize?.addEventListener('change', () => {
+      this.manager.updateControls({ joystickSize: joySize.value as any });
+    });
+
     const gp = document.getElementById('set-gamepad-enabled') as HTMLInputElement;
     gp?.addEventListener('change', () => {
       this.manager.updateControls({ gamepadEnabled: gp.checked });
@@ -816,14 +912,24 @@ export class SettingsUI {
       this.renderActiveTab();
     });
 
-    const bindSlider = (id: string, labelId: string, unit: string, prop: 'distance' | 'height' | 'pitchAngle' | 'fov' | 'smoothSpeed' | 'shakeAmount') => {
+    const adaptiveFov = document.getElementById('set-cam-adaptive-fov') as HTMLInputElement;
+    adaptiveFov?.addEventListener('change', () => {
+      this.manager.updateCamera({ adaptivePortraitFov: adaptiveFov.checked });
+    });
+
+    const bindSlider = (id: string, labelId: string, unit: string, prop: any) => {
       const input = document.getElementById(id) as HTMLInputElement;
       input?.addEventListener('input', () => {
         const val = parseFloat(input.value);
-        document.getElementById(labelId)!.textContent = `${val}${unit}`;
+        const lbl = document.getElementById(labelId);
+        if (lbl) lbl.textContent = `${val}${unit}`;
         this.manager.updateCamera({ [prop]: val, preset: 'custom' });
       });
     };
+
+    bindSlider('set-cam-mob-dist', 'val-cam-mob-dist', 'm', 'mobileDistance');
+    bindSlider('set-cam-mob-height', 'val-cam-mob-height', 'm', 'mobileHeight');
+    bindSlider('set-cam-mob-fov', 'val-cam-mob-fov', '°', 'mobileFov');
 
     bindSlider('set-cam-dist', 'val-cam-dist', 'm', 'distance');
     bindSlider('set-cam-height', 'val-cam-height', 'm', 'height');
@@ -837,6 +943,12 @@ export class SettingsUI {
     const cb = document.getElementById('set-colorblind') as HTMLSelectElement;
     cb?.addEventListener('change', () => {
       this.manager.updateAccessibility({ colorblindMode: cb.value as ColorblindMode });
+    });
+
+    const haptics = document.getElementById('set-haptics') as HTMLInputElement;
+    haptics?.addEventListener('change', () => {
+      this.manager.updateAccessibility({ hapticsEnabled: haptics.checked });
+      HapticManager.getInstance().enabled = haptics.checked;
     });
 
     const rf = document.getElementById('set-reduced-flash') as HTMLInputElement;
